@@ -62,12 +62,18 @@ pima['label'] = pima['Speed (km/h)'].apply(classify_activity)
 x = pima[fieldNames]
 y = pima['label']
 
+# Split the training and testing data
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.20, random_state=1)
+
+# Create SVM Pipline Classifer Object
+clf = make_pipeline(StandardScaler(), SVC())
+clf = clf.fit(x_train,y_train)
+y_pred = clf.predict(x_test)
+
+# predict the response for test dataset
+print("Accuracy:", metrics.accuracy_score(y_test, y_pred))
+
+
 # Print the first 5 rows
-print(pima.head())
-
-
-
-# Data Classification
-
-
+#print(pima.head())
 
