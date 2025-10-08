@@ -56,3 +56,34 @@ threat/vulnerabilities. Feel free to add to these points as you deem appropriate
 - Dataset
 - Peer participation assessment
 - Oral presentation
+
+## Repository Commits
+
+This GitHub repository follows a personalised version of conventional commit types.
+
+A visual demonstration of the full list of conventional commit types can be found here [here](https://github.com/pvdlg/conventional-changelog-metahub).
+
+| Commit Type | Title                    | Meaning                                                                                     |
+| ----------- | ------------------------ | ------------------------------------------------------------------------------------------- |
+| `feat`      | Features                 | A new feature                                                                               |
+| `fix`       | Bug Fixes                | A bug Fix                                                                                   |
+| `docs`      | Documentation            | Changes which affect documentation only                                                     |
+| `refactor`  | Code Refactoring         | Changes affecting code that do not fit into the bug fix or feature category                 |
+| `perf`      | Performance Improvements | A code change that improves performance                                                     |
+| `chore`     | Chores                   | Minor adjustments, such as adjusting comments or non-functional code formatting             |
+
+## Folder Structure
+*Note: this does not reflect the full contents of this repository*
+
+    .
+    ├── iot-activity-recognition 
+    │  ├── ai
+    │      ├── dl-algorithm.py
+    │      └── ml-svm.py
+    │  ├── data
+    │      ├── public
+    │      └── group
+    │  ├── docs
+    │  └── README.md
+    │
+    └── ...
