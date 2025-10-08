@@ -23,4 +23,20 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 
+# Field Names are the columns / types of data the datasets have collected
+
+# Note: These field names likely need to be changed.
+fieldNames = ['time', 'Latitude', 'Longitude', 'Altitude (m)', 'Speed (km/h)', 'Total distance (km)', ] 
+
+# Todo: multiple dataframes / data files
+#dataFrames = []
+
+# Load csv file
+pima = pd.read_csv("../data/group/run-walk-mixed-Birmingham.csv", header=None, names=fieldNames, encoding='utf-16')
+
+pima.head()
+
+# Data Classification
+
+
 
