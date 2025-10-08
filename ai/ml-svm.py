@@ -1,6 +1,5 @@
 """
 File: ml-svm.py
-Author: Sam, 
 Created: 2025-10-08
 Last Updated: 2025-10-08
 
