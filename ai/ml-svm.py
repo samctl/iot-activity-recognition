@@ -29,12 +29,42 @@ from sklearn.svm import SVC
 fieldNames = ['time', 'Latitude', 'Longitude', 'Altitude (m)', 'Speed (km/h)', 'Total distance (km)', ] 
 
 # Todo: multiple dataframes / data files
+# TODO: get all of above from the "../data/group/" directory instead of manually loading
 #dataFrames = []
 
 # Load csv file
 pima = pd.read_csv("../data/group/run-walk-mixed-Birmingham.csv", header=None, names=fieldNames, encoding='utf-16')
 
-pima.head()
+# TODO: Refine these rules for better accuracy
+# TODO: Need a way of not straight away dropping from in_vehicle to walking if moving slow for a second etc
+def classify_activity(speed_kmh):
+    if pd.isna(speed_kmh):
+        return 'unknown'
+    if speed_kmh < 1:
+        return 'stationary'
+    elif speed_kmh < 7:
+        return 'walking'
+    elif speed_kmh < 18:
+        return 'running'
+    elif speed_kmh < 72:
+        return 'in_vehicle'  # Can include any road vehicles
+    else:
+        return 'on_train'    # higher speeds
+
+
+# Apply it
+pima['label'] = pima['Speed (km/h)'].apply(classify_activity)
+
+# Set x and y for train test split
+x = pima[fieldNames]
+y = pima['label']
+
+
+
+# Print the first 5 rows
+print(pima.head())
+
+
 
 # Data Classification
 
