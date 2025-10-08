@@ -33,7 +33,10 @@ fieldNames = ['time', 'Latitude', 'Longitude', 'Altitude (m)', 'Speed (km/h)', '
 #dataFrames = []
 
 # Load csv file
-pima = pd.read_csv("../data/group/run-walk-mixed-Birmingham.csv", header=None, names=fieldNames, encoding='utf-16')
+pima = pd.read_csv("../data/group/mixed(run+walk)_sm.csv", sep='\t', encoding='utf-16', skiprows=2, names=fieldNames)
+
+# Convert speed to a numerical value 
+pima['Speed (km/h)'] = pd.to_numeric(pima['Speed (km/h)'], errors='coerce')
 
 # TODO: Refine these rules for better accuracy
 # TODO: Need a way of not straight away dropping from in_vehicle to walking if moving slow for a second etc
@@ -58,8 +61,6 @@ pima['label'] = pima['Speed (km/h)'].apply(classify_activity)
 # Set x and y for train test split
 x = pima[fieldNames]
 y = pima['label']
-
-
 
 # Print the first 5 rows
 print(pima.head())
