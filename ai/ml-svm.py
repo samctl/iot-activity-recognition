@@ -1,7 +1,7 @@
 """
 File: ml-svm.py
 Created: 2025-10-08
-Last Updated: 2025-10-08
+Last Updated: 2025-10-11
 
 Description:
     Support Vector Machines (SVM) Alogrithm for Human Activity Recognition Task
@@ -32,10 +32,22 @@ fieldNames = ['time', 'Latitude', 'Longitude', 'Altitude (m)', 'Speed (km/h)', '
 #dataFrames = []
 
 # Load csv file
-pima = pd.read_csv("../data/group/mixed(run+walk)_sm.csv", sep='\t', encoding='utf-16', skiprows=2, names=fieldNames)
+pima = pd.read_csv("run1_jw.csv", sep='\t', encoding='utf-16', skiprows=2, names=fieldNames)
 
 # Convert speed to a numerical value 
 pima['Speed (km/h)'] = pd.to_numeric(pima['Speed (km/h)'], errors='coerce')
+
+# Convert time to datatime to create time interval feature 
+pima['time'] = pd.to_datetime(pima['time'], errors='coerce')
+
+# Create an average speed over a 5 second period
+pima['averageSpeed'] = (
+    pima.set_index('time')['Speed (km/h)']
+    .rolling('5s', min_periods=1) # TODO: Test different rolling averages
+    .mean()
+    .reset_index(drop=True)
+)
+
 
 # TODO: Refine these rules for better accuracy
 # TODO: Need a way of not straight away dropping from in_vehicle to walking if moving slow for a second etc
@@ -55,10 +67,10 @@ def classify_activity(speed_kmh):
 
 
 # Apply it
-pima['label'] = pima['Speed (km/h)'].apply(classify_activity)
+pima['label'] = pima['averageSpeed'].apply(classify_activity)
 
 # Set x and y for train test split
-x = pima[fieldNames]
+x = pima[['Latitude', 'Longitude', 'Altitude (m)', 'averageSpeed', 'Total distance (km)']]
 y = pima['label']
 
 # Split the training and testing data
@@ -71,7 +83,7 @@ y_pred = clf.predict(x_test)
 
 # predict the response for test dataset
 print("Accuracy:", metrics.accuracy_score(y_test, y_pred))
-
+# TODO: More metrics (precision, recall etc.)
 
 # Print the first 5 rows
 #print(pima.head())
