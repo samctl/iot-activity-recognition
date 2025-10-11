@@ -32,7 +32,7 @@ fieldNames = ['time', 'Latitude', 'Longitude', 'Altitude (m)', 'Speed (km/h)', '
 #dataFrames = []
 
 # Load csv file
-df = pd.read_csv("run1_jw.csv", sep='\t', encoding='utf-16', skiprows=2, names=fieldNames)
+df = pd.read_csv("./data/group/run1_jw.csv", sep='\t', encoding='utf-16', skiprows=2, names=fieldNames)
 
 # Convert speed to a numerical value 
 df['Speed (km/h)'] = pd.to_numeric(df['Speed (km/h)'], errors='coerce')
@@ -83,7 +83,9 @@ y_pred = clf.predict(x_test)
 
 # predict the response for test dataset
 print("Accuracy:", metrics.accuracy_score(y_test, y_pred))
-# TODO: More metrics (precision, recall etc.)
+print("Precision:", metrics.precision_score(y_test, y_pred, average='weighted'))
+print("Recall:", metrics.recall_score(y_test, y_pred, average='weighted'))
+# TODO: Metric visualisation 
 
 # Print the first 5 rows
 #print(pima.head())
