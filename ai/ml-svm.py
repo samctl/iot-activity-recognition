@@ -4,7 +4,7 @@ Created: 2025-10-08
 Last Updated: 2025-10-11
 
 Description:
-    Support Vector Machines (SVM) Alogrithm for Human Activity Recognition Task
+    Support Vector Machines (SVM) Algorithm for Human Activity Recognition Task
 
 Usage:
     python ml-svm.py
@@ -32,17 +32,17 @@ fieldNames = ['time', 'Latitude', 'Longitude', 'Altitude (m)', 'Speed (km/h)', '
 #dataFrames = []
 
 # Load csv file
-pima = pd.read_csv("run1_jw.csv", sep='\t', encoding='utf-16', skiprows=2, names=fieldNames)
+df = pd.read_csv("run1_jw.csv", sep='\t', encoding='utf-16', skiprows=2, names=fieldNames)
 
 # Convert speed to a numerical value 
-pima['Speed (km/h)'] = pd.to_numeric(pima['Speed (km/h)'], errors='coerce')
+df['Speed (km/h)'] = pd.to_numeric(df['Speed (km/h)'], errors='coerce')
 
-# Convert time to datatime to create time interval feature 
-pima['time'] = pd.to_datetime(pima['time'], errors='coerce')
+# Convert time to datetime to create time interval feature 
+df['time'] = pd.to_datetime(df['time'], errors='coerce')
 
 # Create an average speed over a 5 second period
-pima['averageSpeed'] = (
-    pima.set_index('time')['Speed (km/h)']
+df['averageSpeed'] = (
+    df.set_index('time')['Speed (km/h)']
     .rolling('5s', min_periods=1) # TODO: Test different rolling averages
     .mean()
     .reset_index(drop=True)
@@ -67,16 +67,16 @@ def classify_activity(speed_kmh):
 
 
 # Apply it
-pima['label'] = pima['averageSpeed'].apply(classify_activity)
+df['label'] = df['averageSpeed'].apply(classify_activity)
 
 # Set x and y for train test split
-x = pima[['Latitude', 'Longitude', 'Altitude (m)', 'averageSpeed', 'Total distance (km)']]
-y = pima['label']
+x = df[['Latitude', 'Longitude', 'Altitude (m)', 'averageSpeed', 'Total distance (km)']]
+y = df['label']
 
 # Split the training and testing data
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.20, random_state=1)
 
-# Create SVM Pipline Classifer Object
+# Create SVM Pipeline Classifier Object
 clf = make_pipeline(StandardScaler(), SVC())
 clf = clf.fit(x_train,y_train)
 y_pred = clf.predict(x_test)
