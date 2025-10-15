@@ -84,6 +84,8 @@ A visual demonstration of the full list of conventional commit types can be foun
     │      ├── public
     │      └── group
     │  ├── docs
+    │      └── threat-model
+    │
     │  └── README.md
     │
     └── ...
