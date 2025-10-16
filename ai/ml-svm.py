@@ -14,64 +14,134 @@ Notes:
     - Peer Review TBC
 """
 
+
+
 import pandas as pd
 from sklearn.model_selection import train_test_split 
 from sklearn import metrics 
+
 ## Imports for Support Vector Machines ##
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
+import os
+import numpy as np
 
-# Field Names are the columns / types of data the datasets have collected
+# Change this to your local path where the group data is stored
+group_dir = "C:/Users/josh/OneDrive - Bath Spa University/3rd Year/CreatingIOT/iot-activity-recognition/data/group/"
+all_files = os.listdir(group_dir)
 
-# Note: These field names likely need to be changed.
-fieldNames = ['time', 'Latitude', 'Longitude', 'Altitude (m)', 'Speed (km/h)', 'Total distance (km)', ] 
+# Constants 
+STATIONARY_SPEED = 1
+WALKING_SPEED = 7
+RUNNING_SPEED = 18
+IN_VEHICLE_SPEED = 72
 
-# Todo: multiple dataframes / data files
-# TODO: get all of above from the "../data/group/" directory instead of manually loading
-#dataFrames = []
-
-# Load csv file
-df = pd.read_csv("./data/group/run1_jw.csv", sep='\t', encoding='utf-16', skiprows=2, names=fieldNames)
-
-# Convert speed to a numerical value 
-df['Speed (km/h)'] = pd.to_numeric(df['Speed (km/h)'], errors='coerce')
-
-# Convert time to datetime to create time interval feature 
-df['time'] = pd.to_datetime(df['time'], errors='coerce')
-
-# Create an average speed over a 5 second period
-df['averageSpeed'] = (
-    df.set_index('time')['Speed (km/h)']
-    .rolling('5s', min_periods=1) # TODO: Test different rolling averages
-    .mean()
-    .reset_index(drop=True)
-)
+fieldNames = ['time', 'Latitude', 'Longitude', 'Altitude (m)', 'Speed (km/h)', 'Total Distance (km)' ] 
 
 
-# TODO: Refine these rules for better accuracy
-# TODO: Need a way of not straight away dropping from in_vehicle to walking if moving slow for a second etc
+def loadFiles(group_dir, fieldNames):
+    
+    csv_files = []
+    dataFrames = []
+
+
+    # Get list of all csv files in the directory
+    index = 0
+    while index < len(all_files):
+        file = all_files[index]
+        if file.endswith('.csv'):
+            # print("Found file: ", file)
+            csv_files.append(file)
+        index += 1
+
+    index = 0
+    # A while loop to go through each file, load it to the dataframe list 
+    while index < len(csv_files):
+        file = csv_files[index]
+        file_path = os.path.join(group_dir, file)
+        pima = pd.read_csv(file_path, sep='\t', encoding='utf-16')
+        dataFrames.append(pima)
+        print("Loaded the file ", file)
+        index += 1
+
+    # Concatenate all dataframes into a single dataframe
+    pima = pd.concat(dataFrames, ignore_index=True)
+
+    # Convert speed to a numerical value
+    pima['Speed (km/h)'] = pd.to_numeric(pima['Speed (km/h)'], errors='coerce')
+   
+    #TODO - Check the time format in the csv files - currently mixed values. Need to standardised and then converted to numeric feature so the SVM model can use it
+    #pima['time'] = pd.to_numeric(pima['time'], errors='coerce')
+
+    return pima
+
+
+# Classifies the activity based on speed
 def classify_activity(speed_kmh):
     if pd.isna(speed_kmh):
         return 'unknown'
-    if speed_kmh < 1:
+    if speed_kmh < STATIONARY_SPEED:
         return 'stationary'
-    elif speed_kmh < 7:
+    elif speed_kmh < WALKING_SPEED:
         return 'walking'
-    elif speed_kmh < 18:
+    elif speed_kmh < RUNNING_SPEED:
         return 'running'
-    elif speed_kmh < 72:
-        return 'in_vehicle'  # Can include any road vehicles
+    elif speed_kmh < IN_VEHICLE_SPEED:
+        return 'in_vehicle' 
     else:
-        return 'on_train'    # higher speeds
+        return 'on_train'  
 
 
-# Apply it
-df['label'] = df['averageSpeed'].apply(classify_activity)
+#Classifies the activities again - However backwards on the dataframe to refine those classifications that may be incorrect
+def refine_classification(pima):
+    # Create a new column for refined labels
+    pima['label_refined'] = pima['label']
+    
+    # Refine classification by iterating backward on the dataframe
+    index = len(pima) - 2
+    while index >= 0:
+        # Check for transition from in_vehicle to walking
+        if pima.iloc[index]['label_refined'] == 'walking' and pima.iloc[index+1]['label_refined'] == 'in_vehicle':
+        # consider if the current activity walking was actually in_vehicle
+            if pima.iloc[index]['Speed (km/h)'] < 5:
+                pima.iloc[index, pima.columns.get_loc('label_refined')] = 'in_vehicle'
+        elif pima.iloc[index]['label_refined'] == 'running' and pima.iloc[index+1]['label_refined'] == 'in_vehicle':
+            # consider if the current activity running was actually in_vehicle
+            if pima.iloc[index]['Speed (km/h)'] > 10: 
+                 pima.iloc[index, pima.columns.get_loc('label_refined')] = 'in_vehicle'
+        index -= 1
+    return pima
 
-# Set x and y for train test split
-x = df[['Latitude', 'Longitude', 'Altitude (m)', 'averageSpeed', 'Total distance (km)']]
-y = df['label']
+def prepare_data(pima, fieldNames):
+
+    # Calculate the average speed over a 5 sampled rolling window. - TODO - Currently cant use the time format but use pima.set_index('time')['Speed (km/h)'] once the time format is fixed. Currently its using sample window of 5 rows instead of time stamps
+    pima['averageSpeed'] = (
+        pima['Speed (km/h)']
+        .rolling(window=int(5), min_periods=1)
+        .mean()
+    )
+ 
+
+    pima['label'] = pima['averageSpeed'].apply(classify_activity)
+    #pima['label'] = pima['Speed (km/h)'].apply(classify_activity)
+    pima = refine_classification(pima)
+    
+    # Set x and y for train test split using the newly refined labels
+    x = pima[fieldNames]
+
+    # currently drop the time column from the features as it contains mixed values. TODO - the drop needs to be removed and used as a feature in the SVM classifier once the time format is standardised
+    x = pima[fieldNames].drop('time', axis=1)
+    x = x.apply(pd.to_numeric, errors='coerce').fillna(0)
+
+    # set the y for train test split using the refined labels
+    y = pima['label_refined']
+
+    print(pima.head(50)) # Print the first 50 rows of the dataframe to check the labels
+    return x, y 
+
+pima = loadFiles(group_dir, fieldNames) # Load Files
+x, y = prepare_data(pima, fieldNames) # Prepare data
 
 # Split the training and testing data
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.20, random_state=1)
@@ -85,8 +155,5 @@ y_pred = clf.predict(x_test)
 print("Accuracy:", metrics.accuracy_score(y_test, y_pred))
 print("Precision:", metrics.precision_score(y_test, y_pred, average='weighted'))
 print("Recall:", metrics.recall_score(y_test, y_pred, average='weighted'))
+
 # TODO: Metric visualisation 
-
-# Print the first 5 rows
-#print(pima.head())
-
