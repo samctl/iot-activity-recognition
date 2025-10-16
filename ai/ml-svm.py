@@ -28,7 +28,7 @@ import os
 import numpy as np
 
 # Change this to your local path where the group data is stored
-group_dir = "C:/Users/josh/OneDrive - Bath Spa University/3rd Year/CreatingIOT/iot-activity-recognition/data/group/"
+group_dir = "../data/group"
 all_files = os.listdir(group_dir)
 
 # Constants 
@@ -44,7 +44,6 @@ def loadFiles(group_dir, fieldNames):
     
     csv_files = []
     dataFrames = []
-
 
     # Get list of all csv files in the directory
     index = 0
