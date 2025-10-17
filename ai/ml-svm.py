@@ -19,7 +19,9 @@ Notes:
 import pandas as pd
 from sklearn.model_selection import train_test_split 
 from sklearn import metrics 
-
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix, classification_report
 ## Imports for Support Vector Machines ##
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
@@ -150,9 +152,43 @@ clf = make_pipeline(StandardScaler(), SVC())
 clf = clf.fit(x_train,y_train)
 y_pred = clf.predict(x_test)
 
-# predict the response for test dataset
-print("Accuracy:", metrics.accuracy_score(y_test, y_pred))
-print("Precision:", metrics.precision_score(y_test, y_pred, average='weighted'))
-print("Recall:", metrics.recall_score(y_test, y_pred, average='weighted'))
 
-# TODO: Metric visualisation 
+def visualize_metrics(y_test, y_pred):
+    # setting style
+    plt.style.use('seaborn-v0_8')
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+    
+    # confusion matrix
+    cm = confusion_matrix(y_test, y_pred)
+    classes = sorted(set(y_test) | set(y_pred))
+    
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                xticklabels=classes, yticklabels=classes, ax=ax1)
+    ax1.set_title('Confusion Matrix', fontsize=14, fontweight='bold')
+    ax1.set_xlabel('Predicted Label', fontweight='bold')
+    ax1.set_ylabel('True Label', fontweight='bold')
+    ax1.tick_params(axis='x', rotation=45)
+    ax1.tick_params(axis='y', rotation=0)
+    
+    # classification report heatmap
+    report = classification_report(y_test, y_pred, output_dict=True)
+    report_df = pd.DataFrame(report).transpose().iloc[:-3, :-1]  # remove averages and support
+    
+    sns.heatmap(report_df, annot=True, cmap='YlOrRd', fmt='.3f', 
+                cbar_kws={'label': 'Score'}, ax=ax2)
+    ax2.set_title('Classification Report\n(Precision, Recall, F1-Score)', 
+                 fontsize=14, fontweight='bold')
+    
+    plt.tight_layout()
+    plt.show()
+    
+    return report_df
+
+# metrics
+print(f"\nOverall Accuracy: {metrics.accuracy_score(y_test, y_pred):.4f}")
+print(f"Precision: {metrics.precision_score(y_test, y_pred, average='weighted'):.4f}")
+print(f"Recall: {metrics.recall_score(y_test, y_pred, average='weighted'):.4f}")
+print(f"F1-Score: {metrics.f1_score(y_test, y_pred, average='weighted'):.4f}")
+
+# generate visualizations
+report_df = visualize_metrics(y_test, y_pred)
