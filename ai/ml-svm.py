@@ -28,9 +28,13 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 import os
 import numpy as np
+from math import radians, cos, sin, asin, sqrt
+
+
 
 # Change this to your local path where the group data is stored
-group_dir = "../data/group"
+group_dir = "C:/Users/josh/OneDrive - Bath Spa University/3rd Year/CreatingIOT/iot-activity-recognition/data/group"
+stations_path = "C:/Users/josh/OneDrive - Bath Spa University/3rd Year/CreatingIOT/iot-activity-recognition/data/public/train_stations_GB.csv"
 all_files = os.listdir(group_dir)
 
 # Constants 
@@ -40,6 +44,42 @@ RUNNING_SPEED = 18
 IN_VEHICLE_SPEED = 72
 
 fieldNames = ['time', 'Latitude', 'Longitude', 'Altitude (m)', 'Speed (km/h)', 'Total Distance (km)' ] 
+
+
+stationsData = pd.read_csv(stations_path)
+stationsData.columns = ['id', 'name', 'norm', 'uic', 'latitude', 'longitude', 'station_id', 'country', 'time_zone', 'is_city', 'is_main_station', 'is_airport', 'entur_id', 'entur_is_enabled']
+
+stations = pd.DataFrame(stationsData)
+print("\n\nIM SHOWING THE DATA")
+print(stations.head())
+
+
+
+
+
+def is_nearest(lat, lon, radius_km):
+    EARTHS_RADIUS = 6371
+    found = (False, None)
+    
+    # Convert to radians
+    lat1 = np.radians(lat)
+    lon1 = np.radians(lon)
+    lat2 = np.radians(stations['latitude'].values)
+    lon2 = np.radians(stations['longitude'].values)
+
+    # Haversine formula vectorized (Ahmed, 2024)
+    deltalat = lat2 - lat1 
+    deltalon = lon2 - lon1
+    squared_sine = np.sin(deltalat/2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(deltalon/2)**2
+    angular_distance = 2 * np.arcsin(np.sqrt(squared_sine))
+    km = EARTHS_RADIUS * angular_distance
+
+    # Check if any station is within radius
+    if np.any(km <= radius_km):
+        nearest_station_id = stations['id'].values[km <= radius_km][0]  # first matching station
+        found = (True, nearest_station_id) # staion found
+    return found
+
 
 
 def loadFiles(group_dir, fieldNames):
@@ -94,23 +134,52 @@ def classify_activity(speed_kmh):
         return 'on_train'  
 
 
+def clasifyOnTrain(onTrainIndex, previousStationId):
+    numOfEntries = onTrainIndex
+    onTrain = False
+    # print("Current Index = ", onTrainIndex)
+    # Check back to determine whether coords were at a station
+    while (onTrainIndex > 0 and onTrain == False):
+        isAtTrainStn, ClosestStationId = is_nearest(pima.iloc[onTrainIndex]['Latitude'], pima.iloc[onTrainIndex]['Longitude'], 1.0) # sets 1 km radius - how close to station to be considered at station 
+        if (isAtTrainStn == True):
+            stationId = ClosestStationId
+            onTrain = True
+        # print("Next Index")
+        onTrainIndex -= 1
+    
+    # When location was at a station then work to most recent entry to set on train
+    # but only when not the destination station i.e. previousStationId = 0 or station is the same
+    if (onTrain == True and previousStationId != 0 and stationId != previousStationId):
+        index = onTrainIndex
+        while(index < numOfEntries):
+            pima.iloc[index, pima.columns.get_loc('label_refined')] = 'on_train'
+            index += 1
+    return onTrainIndex, stationId
+
+
 #Classifies the activities again - However backwards on the dataframe to refine those classifications that may be incorrect
 def refine_classification(pima):
     # Create a new column for refined labels
     pima['label_refined'] = pima['label']
     
     # Refine classification by iterating backward on the dataframe
-    index = len(pima) - 2
-    while index >= 0:
+    
+    # Check whether on train
+    onTrainIndex = len(pima) - 1
+    # start with Destination station (the most recent station)
+    stationId = 0
+    while (onTrainIndex > 0):
+        onTrainIndex, stationId = clasifyOnTrain(onTrainIndex, stationId)
+    
+    index = len(pima) - 1
+    while index > 0:
         # Check for transition from in_vehicle to walking
-        if pima.iloc[index]['label_refined'] == 'walking' and pima.iloc[index+1]['label_refined'] == 'in_vehicle':
-        # consider if the current activity walking was actually in_vehicle
-            if pima.iloc[index]['Speed (km/h)'] < 5:
-                pima.iloc[index, pima.columns.get_loc('label_refined')] = 'in_vehicle'
-        elif pima.iloc[index]['label_refined'] == 'running' and pima.iloc[index+1]['label_refined'] == 'in_vehicle':
-            # consider if the current activity running was actually in_vehicle
-            if pima.iloc[index]['Speed (km/h)'] > 10: 
-                 pima.iloc[index, pima.columns.get_loc('label_refined')] = 'in_vehicle'
+        if ((pima.iloc[index-1]['label_refined'] == 'walking' or
+             pima.iloc[index-1]['label_refined'] == 'running') and
+             pima.iloc[index]['label_refined'] == 'in_vehicle'):
+            # consider if the current activity walking was actually in_vehicle
+            if pima.iloc[index-1]['Speed (km/h)'] > STATIONARY_SPEED: 
+                pima.iloc[index-1, pima.columns.get_loc('label_refined')] = 'in_vehicle'
         index -= 1
     return pima
 
