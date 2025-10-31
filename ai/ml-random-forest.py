@@ -31,9 +31,9 @@ all_files = os.listdir(group_dir)
 
 # Constants 
 STATIONARY_SPEED = 1
-WALKING_SPEED = 7
-RUNNING_SPEED = 18
-IN_VEHICLE_SPEED = 72
+WALKING_SPEED = 3
+RUNNING_SPEED = 10
+IN_VEHICLE_SPEED = 52
 
 fieldNames = ['time', 'Latitude', 'Longitude', 'Altitude (m)', 'Speed (km/h)', 'Total Distance (km)' ] 
 
