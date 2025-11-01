@@ -113,28 +113,182 @@ def refine_classification(pima):
     return pima
 
 
-def prepare_data(pima, fieldNames):
-    
-    # Calculate the average speed over a 5 sampled rolling window.
-    pima['averageSpeed'] = (
-        pima['Speed (km/h)']
-        .rolling(window=int(5), min_periods=1)
-        .mean()
-    )
+##========================================================
+#   NOTE: EVERYTHING BELOW THIS LINE HAS/WILL BE CHANGED 
+#   
+#   Machine Learning algorithm needs to be adjusted to
+#   Deep Learning
+#
+##========================================================
 
-    pima['label'] = pima['averageSpeed'].apply(classify_activity)
-    #pima['label'] = pima['Speed (km/h)'].apply(classify_activity)
-    pima = refine_classification(pima)
-    
-    # Set x and y for train test split using the newly refined labels
-    x = pima[fieldNames]
-    
-    # currently drop the time column from the features as it contains mixed values. TODO - the drop needs to be removed and used as a feature in the SVM classifier once the time format is standardised
-    x = pima[fieldNames].drop('time', axis=1)
-    x = x.apply(pd.to_numeric, errors='coerce').fillna(0)
-    
-    # set the y for train test split using the refined labels
-    y = pima['label_refined']
+def prepare_data(df):
+    # Create brand new column - averageSpeed
+    df['averageSpeed'] = df['Speed (km/h)'].rolling(window=5, min_periods=1).mean()
+    df['label'] = df['averageSpeed'].apply(classify_activity)
+    df = refine_classification(df)
 
-    print(pima.head(50))
+    features = ['Latitude', 'Longitude', 'Altitude (m)', 'Speed (km/h)', 'Total Distance (km)', 'averageSpeed']
+    
+    # x is the input (feature labels e.g. Latitude)
+    x = df[features].apply(pd.to_numeric, errors='coerce').fillna(0)
+    
+    # y is the target output (running, walking, in_vehicle, etc)
+    y = df['label_refined']
     return x, y 
+
+
+# This class is for RNN model 'windows' (pieces of data)
+# The Alogrithm will analyse windows for patterns for predictions
+# OpenAI (2025) ChatGPT 4o: “how do I implement window analysis for LTSM models using pytorch DL models sequence dataset and output a prediction”
+# errezeta (2021) ‘Custom dataset for time-series data for an LSTM model’, PyTorch Forums, 14 October. Available at: https://discuss.pytorch.org/t/custom-dataset-for-time-series-data-for-an-lstm-model/134275 (Accessed: 1 November 2025).
+class SequenceDataset(Dataset):
+    
+    # NOTE: Change window size to tweak the model
+    def __init__(self, x, y, window_size=20): # NOTE: also change if your hardware is weak when testing model
+        self.X = x
+        self.y = y
+        self.window_size = window_size
+        self.samples = self._create_sequences()
+
+    # Build time windows
+    def _create_sequences(self):
+        seqs = []
+        for i in range(len(self.X) - self.window_size):
+            x_seq = self.X[i:i + self.window_size]
+            y_seq = self.y[i + self.window_size - 1]
+            seqs.append((x_seq, y_seq))
+        return seqs
+
+    # Tell pyTorch how many windows have been created
+    def __len__(self):
+        return len(self.samples)
+
+    # Return specific window along with label when the model asks for it
+    def __getitem__(self, idx):
+        x_seq, y = self.samples[idx]
+        return torch.tensor(x_seq.values, dtype=torch.float32), torch.tensor(y, dtype=torch.long)
+
+# Human Activity Recognition prediction class
+# OpenAI (2025) ChatGPT 4o: “how do I implement window analysis for RNN models using pytorch DL models LTSM sequence dataset and output a prediction”
+class HAR_LSTM(nn.Module):
+    
+    # Run once function to read time series data
+    def __init__(self, input_dim, hidden_dim=128, num_layers=2, num_classes=5, dropout=0.3):
+        super(HAR_LSTM, self).__init__()
+        self.lstm = nn.LSTM(
+            input_size=input_dim,
+            hidden_size=hidden_dim,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=dropout,
+            bidirectional=True
+        )
+        self.fc = nn.Linear(hidden_dim * 2, num_classes)
+        self.dropout = nn.Dropout(dropout)
+
+    # Make prediction (out) and return
+    def forward(self, x):
+        out, _ = self.lstm(x)
+        out = self.dropout(out[:, -1, :])  # last timestep
+        out = self.fc(out)
+        return out
+
+# Train model using training data
+def train_model(model, dataloader, criterion, optimizer, device):
+    # Set model to training mode
+    model.train()
+    total_loss = 0
+    
+    # Training loop for PyTorch
+    for xb, yb in dataloader:
+        xb, yb = xb.to(device), yb.to(device)
+        optimizer.zero_grad()
+        
+        # prediction (output) and loss computation
+        output = model(xb)
+        loss = criterion(output, yb)
+        
+        # Backward propogation (similar to rule based backward chaining)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+    return total_loss / len(dataloader)
+
+# Check how well the model is performing
+def eval_model(model, dataloader, device):
+    
+    # Switch model to eval mode
+    model.eval()
+    y_true, y_pred = [], []
+    
+    # Pytorch evaluation loop
+    with torch.no_grad():
+        for xb, yb in dataloader:
+            xb = xb.to(device)
+            outputs = model(xb)
+            preds = torch.argmax(outputs, dim=1).cpu().numpy()
+            y_true.extend(yb.numpy())
+            y_pred.extend(preds)
+    return np.array(y_true), np.array(y_pred)
+
+# Visulise results with a confusion matrix
+def visualize_results(y_true, y_pred, label_classes):
+    plt.style.use('seaborn-v0_8')
+    cm = confusion_matrix(y_true, y_pred)
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                xticklabels=label_classes, yticklabels=label_classes)
+    plt.title("Confusion Matrix - LTSM Human Activity Recognition")
+    plt.xlabel("Predicted")
+    plt.ylabel("True")
+    plt.show()
+    print(classification_report(y_true, y_pred, target_names=label_classes))
+
+
+# Entrypoint fucnction
+def main():
+    
+    # USE CUDA (Nvidia) else use cpu iGPU
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {device}")
+
+    # Load data
+    df = loadFiles(group_dir, fieldNames)
+    X, y = prepare_data(df)
+    le = LabelEncoder()
+    y_encoded = le.fit_transform(y)
+    label_classes = le.classes_
+
+    # Normalize features
+    scaler = StandardScaler()
+    X_scaled = pd.DataFrame(scaler.fit_transform(X), columns=X.columns)
+
+    # Train Test Split Data (80 / 20 split)
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y_encoded, test_size=0.2, random_state=42)
+
+    # Dataset loaders w/ PyTorch
+    train_ds = SequenceDataset(X_train, y_train)
+    test_ds = SequenceDataset(X_test, y_test)
+    train_loader = DataLoader(train_ds, batch_size=64, shuffle=True)
+    test_loader = DataLoader(test_ds, batch_size=64)
+
+    # Model Setup using LTSM functions 
+    input_dim = X.shape[1]
+    num_classes = len(label_classes)
+    model = HAR_LSTM(input_dim=input_dim, hidden_dim=128, num_layers=2, num_classes=num_classes)
+    model.to(device)
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
+
+    # Train model
+    for epoch in range(1, 16):
+        loss = train_model(model, train_loader, criterion, optimizer, device)
+        print(f"Epoch [{epoch}/15] - Loss: {loss:.4f}")
+
+    # Evaluate Model
+    y_true, y_pred = eval_model(model, test_loader, device)
+    visualize_results(y_true, y_pred, label_classes)
+
+
+if __name__ == "__main__":
+    main()
