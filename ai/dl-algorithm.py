@@ -22,9 +22,20 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import classification_report, confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
-
-
 # Below are the RNN deep learning libraries 
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
+
+
+# Constants 
+group_dir = "../data/group"
+all_files = os.listdir(group_dir)
+
+# constant model tweaking variables
+STATIONARY_SPEED = 1
+WALKING_SPEED = 5
+RUNNING_SPEED = 20
+IN_VEHICLE_SPEED = 52
+
+fieldNames = ['time', 'Latitude', 'Longitude', 'Altitude (m)', 'Speed (km/h)', 'Total Distance (km)' ] 
