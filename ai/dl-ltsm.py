@@ -29,7 +29,7 @@ from torch.utils.data import Dataset, DataLoader
 
 
 # Constants 
-group_dir = "../data/group"
+group_dir = "../data/master"
 all_files = os.listdir(group_dir)
 
 # constant model tweaking variables
