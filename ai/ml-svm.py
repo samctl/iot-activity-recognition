@@ -137,6 +137,7 @@ def classify_activity(speed_kmh):
 def clasifyOnTrain(onTrainIndex, previousStationId):
     numOfEntries = onTrainIndex
     onTrain = False
+    stationId = 0
     # print("Current Index = ", onTrainIndex)
     # Check back to determine whether coords were at a station
     while (onTrainIndex > 0 and onTrain == False):
