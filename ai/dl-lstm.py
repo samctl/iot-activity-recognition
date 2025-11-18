@@ -8,10 +8,12 @@ Description:
 This is a placeholder file
     
 Usage:
-    python dl-algorithm.py
+    python dl-lstm.py
 
 Notes:
-    - RNN Alogrithm
+    - LSTM algorim is a subset of the RNN Alogrithm
+    - May need more stat types
+
 """
 
 import os
@@ -139,7 +141,7 @@ def prepare_data(df):
 
 # This class is for RNN model 'windows' (pieces of data)
 # The Alogrithm will analyse windows for patterns for predictions
-# OpenAI (2025) ChatGPT 4o: “how do I implement window analysis for LTSM models using pytorch DL models sequence dataset and output a prediction”
+# OpenAI (2025) ChatGPT 4o: “how do I implement window analysis for LSTM models using pytorch DL models sequence dataset and output a prediction”
 # errezeta (2021) ‘Custom dataset for time-series data for an LSTM model’, PyTorch Forums, 14 October. Available at: https://discuss.pytorch.org/t/custom-dataset-for-time-series-data-for-an-lstm-model/134275 (Accessed: 1 November 2025).
 class SequenceDataset(Dataset):
     
@@ -169,7 +171,7 @@ class SequenceDataset(Dataset):
         return torch.tensor(x_seq.values, dtype=torch.float32), torch.tensor(y, dtype=torch.long)
 
 # Human Activity Recognition prediction class
-# OpenAI (2025) ChatGPT 4o: “how do I implement window analysis for RNN models using pytorch DL models LTSM sequence dataset and output a prediction”
+# OpenAI (2025) ChatGPT 4o: “how do I implement window analysis for RNN models using pytorch DL models LSTM sequence dataset and output a prediction”
 class HAR_LSTM(nn.Module):
     
     # Run once function to read time series data
@@ -237,7 +239,7 @@ def visualize_results(y_true, y_pred, label_classes):
     cm = confusion_matrix(y_true, y_pred)
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
                 xticklabels=label_classes, yticklabels=label_classes)
-    plt.title("Confusion Matrix - LTSM Human Activity Recognition")
+    plt.title("Confusion Matrix - LSTM Human Activity Recognition")
     plt.xlabel("Predicted")
     plt.ylabel("True")
     plt.show()
@@ -275,7 +277,7 @@ def main():
     train_loader = DataLoader(train_ds, batch_size=64, shuffle=True)
     test_loader = DataLoader(test_ds, batch_size=64)
 
-    # Model Setup using LTSM functions 
+    # Model Setup using LSTM functions 
     input_dim = X.shape[1]
     num_classes = len(label_classes)
     model = HAR_LSTM(input_dim=input_dim, hidden_dim=128, num_layers=2, num_classes=num_classes)
