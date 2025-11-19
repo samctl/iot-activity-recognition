@@ -30,7 +30,7 @@ from torch.utils.data import Dataset, DataLoader
 
 
 # Constants 
-group_dir = "../data/master"
+group_dir = "../data/group"
 all_files = os.listdir(group_dir)
 
 # constant model tweaking variables
@@ -190,7 +190,7 @@ class HAR_CNN(nn.Module):
         )
 
         self.dropout = nn.Dropout(dropout)
-        self.fc = nn.Linear(256, num_classes)
+        self.fc = nn.Linear(256 * 10, num_classes)
 
     def forward(self, x):
         # CNN expects: batch, features, seq_len instead of batch, seq_len, features for LSTM
