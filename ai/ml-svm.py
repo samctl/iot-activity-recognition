@@ -107,7 +107,7 @@ def loadFiles(group_dir, fieldNames):
     # Concatenate all dataframes into a single dataframe
     pima = pd.concat(dataFrames, ignore_index=True)
 
-    # Convert speed to a numerical value
+    # Convert speed to a numerical value (Python pandas.to_numeric method, 2018)
     pima['Speed (km/h)'] = pd.to_numeric(pima['Speed (km/h)'], errors='coerce')
    
     return pima 
@@ -126,7 +126,7 @@ def classify_activity(speed_kmh):
     elif speed_kmh < IN_VEHICLE_SPEED: # Currently set to 72 km/h
         return 'in_vehicle' 
     else:
-        return 'on_train'  # above 72 km/h
+        return 'on_train'  # above 72 km/h is considered on train
 
 # Classifies whether on train based on previous station
 def clasifyOnTrain(onTrainIndex, previousStationId):
@@ -159,22 +159,21 @@ def refine_classification(pima):
     pima['label_refined'] = pima['label']
     
 
-    # Check whether on train
+    # Check if they were on train or not - iterate backwards
     onTrainIndex = len(pima) - 1
-    # start with Destination station (the most recent station)
-    stationId = 0
+    stationId = 0 # start with Destination station (the most recent station)
     while (onTrainIndex > 0):
         onTrainIndex, stationId = clasifyOnTrain(onTrainIndex, stationId)
     
-    # Now refine in_vehicle and walking classifications
-    index = len(pima) - 1
+    # Refine in_vehicle and walking classifications
     # Refine classification by iterating backward on the dataframe
+    index = len(pima) - 1
     while index > 0:
         # Check for transition from in_vehicle to walking
         if ((pima.iloc[index-1]['label_refined'] == 'walking' or
              pima.iloc[index-1]['label_refined'] == 'running') and
              pima.iloc[index]['label_refined'] == 'in_vehicle'):
-            # consider if the current activity walking was actually in_vehicle
+            # consider if the current activity walking or running was actually in_vehicle
             if pima.iloc[index-1]['Speed (km/h)'] > STATIONARY_SPEED: 
                 pima.iloc[index-1, pima.columns.get_loc('label_refined')] = 'in_vehicle'
         index -= 1
@@ -198,15 +197,16 @@ def prepare_data(pima, fieldNames):
     # Set x and y for train test split using the newly refined labels
     x = pima[fieldNames]
 
-    # currently drop the time column from the features as it contains mixed values. In future the SVM classifier could be modified to handle time series data.
-    x = pima[fieldNames].drop('time', axis=1) 
-    x = x.apply(pd.to_numeric, errors='coerce').fillna(0) 
+    # Currently drop the time column from the features as it contains mixed values. In future the SVM classifier could be modified to handle time series data.
+    x = pima[fieldNames].drop('time', axis=1)
     # Fills missing records with NaN then replaces NaN fields with 0 (Pandas DataFrame fillna Method) and (Python pandas.to_numeric method, 2018)
-
+    x = x.apply(pd.to_numeric, errors='coerce').fillna(0) 
+  
 
     # set the y for train test split using the refined labels
     y = pima['label_refined']
 
+    # print(pima.head(50)) # Print the first 50 rows of the dataframe to check the labels
     return x, y 
 
 pima = loadFiles(group_dir, fieldNames) # Load Files

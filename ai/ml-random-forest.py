@@ -37,20 +37,21 @@ WALKING_SPEED = 3
 RUNNING_SPEED = 10
 IN_VEHICLE_SPEED = 52
 
+# Define the field names to be used from the CSV files
 fieldNames = ['time', 'Latitude', 'Longitude', 'Altitude (m)', 'Speed (km/h)', 'Total Distance (km)' ] 
 
-
+# Load station data
 stationsData = pd.read_csv(stations_path)
 stationsData.columns = ['id', 'name', 'norm', 'uic', 'latitude', 'longitude', 'station_id', 'country', 'time_zone', 'is_city', 'is_main_station', 'is_airport', 'entur_id', 'entur_is_enabled']
 
+# Create DataFrame for stations
 stations = pd.DataFrame(stationsData)
-print("\n\nIM SHOWING THE DATA")
-print(stations.head())
 
 
 
 
 
+# To determine if a location is near a station within a given radius
 def is_nearest(lat, lon, radius_km):
     EARTHS_RADIUS = 6371
     found = (False, None)
@@ -75,7 +76,7 @@ def is_nearest(lat, lon, radius_km):
     return found
 
 
-
+# Load all CSV files from the specified directory
 def loadFiles(group_dir, fieldNames):
     
     csv_files = []
@@ -103,29 +104,26 @@ def loadFiles(group_dir, fieldNames):
     # Concatenate all dataframes into a single dataframe
     pima = pd.concat(dataFrames, ignore_index=True)
 
-    # Convert speed to a numerical value
+    # Convert speed to a numerical value (Python pandas.to_numeric method, 2018)
     pima['Speed (km/h)'] = pd.to_numeric(pima['Speed (km/h)'], errors='coerce')
    
-    #TODO - Check the time format in the csv files - currently mixed values. Need to standardised and then converted to numeric feature so the SVM model can use it
-    #pima['time'] = pd.to_numeric(pima['time'], errors='coerce')
-
     return pima
 
 
 # Classifies the activity based on speed
 def classify_activity(speed_kmh):
     if pd.isna(speed_kmh):
-        return 'unknown'
-    if speed_kmh < STATIONARY_SPEED:
+        return 'unknown' # incase of NaN speed values
+    if speed_kmh < STATIONARY_SPEED: # Currently set to 1 km/h
         return 'stationary'
-    elif speed_kmh < WALKING_SPEED:
+    elif speed_kmh < WALKING_SPEED: # Currently set to 3 km/h
         return 'walking'
-    elif speed_kmh < RUNNING_SPEED:
+    elif speed_kmh < RUNNING_SPEED: # Currently set to 10 km/h
         return 'running'
-    elif speed_kmh < IN_VEHICLE_SPEED:
+    elif speed_kmh < IN_VEHICLE_SPEED: # Currently set to 52 km/h
         return 'in_vehicle' 
     else:
-        return 'on_train'  
+        return 'on_train'  # above 52 km/h is considered on train
 
 
 def clasifyOnTrain(onTrainIndex, previousStationId):
@@ -139,7 +137,6 @@ def clasifyOnTrain(onTrainIndex, previousStationId):
         if (isAtTrainStn == True):
             stationId = ClosestStationId
             onTrain = True
-        # print("Next Index")
         onTrainIndex -= 1
     
     # When location was at a station then work to most recent entry to set on train
@@ -157,52 +154,54 @@ def refine_classification(pima):
     # Create a new column for refined labels
     pima['label_refined'] = pima['label']
     
-    # Refine classification by iterating backward on the dataframe
-    
-    # Check whether on train
+    # Check if they were on train or not - iterate backwards
     onTrainIndex = len(pima) - 1
-    # start with Destination station (the most recent station)
-    stationId = 0
+    stationId = 0 # start with Destination station (the most recent station)
     while (onTrainIndex > 0):
         onTrainIndex, stationId = clasifyOnTrain(onTrainIndex, stationId)
     
+    # Refine in_vehicle and walking classifications
+    # Refine classification by iterating backward on the dataframe
     index = len(pima) - 1
+   
     while index > 0:
         # Check for transition from in_vehicle to walking
         if ((pima.iloc[index-1]['label_refined'] == 'walking' or
              pima.iloc[index-1]['label_refined'] == 'running') and
              pima.iloc[index]['label_refined'] == 'in_vehicle'):
-            # consider if the current activity walking was actually in_vehicle
+            # consider if the current activity walking or running was actually in_vehicle
             if pima.iloc[index-1]['Speed (km/h)'] > STATIONARY_SPEED: 
                 pima.iloc[index-1, pima.columns.get_loc('label_refined')] = 'in_vehicle'
         index -= 1
     return pima
 
+# Prepare data for training and testing
 def prepare_data(pima, fieldNames):
 
-    # Calculate the average speed over a 5 sampled rolling window. - TODO - Currently cant use the time format but use pima.set_index('time')['Speed (km/h)'] once the time format is fixed. Currently its using sample window of 5 rows instead of time stamps
+    # Calculate the average speed over a 5 sampled rolling window. (amit, 2025)
+    # In future this could be modified to use time stamps
     pima['averageSpeed'] = (
         pima['Speed (km/h)']
-        .rolling(window=int(5), min_periods=1)
+        .rolling(window=5, min_periods=1)
         .mean()
     )
  
-
+    # Classify activities based on average speed
     pima['label'] = pima['averageSpeed'].apply(classify_activity)
-    #pima['label'] = pima['Speed (km/h)'].apply(classify_activity)
     pima = refine_classification(pima)
     
     # Set x and y for train test split using the newly refined labels
     x = pima[fieldNames]
 
-    # currently drop the time column from the features as it contains mixed values. TODO - the drop needs to be removed and used as a feature in the SVM classifier once the time format is standardised
+    # Currently drop the time column from the features as it contains mixed values. In future the RF classifier could be modified to handle time series data.
     x = pima[fieldNames].drop('time', axis=1)
+    # Fills missing records with NaN then replaces NaN fields with 0 (Pandas DataFrame fillna Method) and (Python pandas.to_numeric method, 2018)
     x = x.apply(pd.to_numeric, errors='coerce').fillna(0)
 
     # set the y for train test split using the refined labels
     y = pima['label_refined']
 
-    print(pima.head(50)) # Print the first 50 rows of the dataframe to check the labels
+    # print(pima.head(50)) # Print the first 50 rows of the dataframe to check the labels
     return x, y 
 
 pima = loadFiles(group_dir, fieldNames) # Load Files
@@ -212,17 +211,18 @@ x, y = prepare_data(pima, fieldNames) # Prepare data
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.20, random_state=1)
 
 # Create Random forest classifier 
-clf = RandomForestClassifier(n_estimators=200, max_depth=8, random_state=0) # n_estimators is number of trees in the forest, max_depth is maximum depth of the tree
+## n_estimators is number of trees in the forest, max_depth is maximum depth of the tree
+clf = RandomForestClassifier(n_estimators=200, max_depth=8, random_state=0) # <-- can tune these parameters
 clf = clf.fit(x_train,y_train)
 y_pred = clf.predict(x_test)
 
-
+# To visualize confusion matrix and classification report
 def visualize_metrics(y_test, y_pred):
-    # setting style
+    # Setting style
     plt.style.use('seaborn-v0_8')
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
     
-    # confusion matrix
+    # Confusion matrix
     cm = confusion_matrix(y_test, y_pred)
     classes = sorted(set(y_test) | set(y_pred))
     
@@ -248,7 +248,7 @@ def visualize_metrics(y_test, y_pred):
     
     return report_df
 
-# metrics
+# Metrics
 print(f"\nOverall Accuracy: {metrics.accuracy_score(y_test, y_pred):.4f}")
 print(f"Precision: {metrics.precision_score(y_test, y_pred, average='weighted'):.4f}")
 print(f"Recall: {metrics.recall_score(y_test, y_pred, average='weighted'):.4f}")
@@ -256,3 +256,9 @@ print(f"F1-Score: {metrics.f1_score(y_test, y_pred, average='weighted'):.4f}")
 
 # generate visualizations
 report_df = visualize_metrics(y_test, y_pred)
+
+# References
+# Amit, w. 'Understanding Pandas Rolling', Medium. Available at: https://medium.com/@whyamit101/understanding-pandas-rolling-f8f6d6796c07 (Accessed: Oct 18, 2025).
+# Ahmed, R. 'Finding Nearest pair of Latitude and Longitude match using Python', Analytics Vidhya. Available at: https://medium.com/analytics-vidhya/finding-nearest-pair-of-latitude-and-longitude-match-using-python-ce50d62af546 (Accessed: Oct 28, 2025).
+# Pandas DataFrame fillna Method Available at: https://www.w3schools.com/python/pandas/ref_df_fillna.asp (Accessed: Oct 23, 2025).
+# Python pandas.to_numeric method(2018) Available at: https://www.geeksforgeeks.org/python/python-pandas-to_numeric-method/ (Accessed: Oct 21, 2025).
