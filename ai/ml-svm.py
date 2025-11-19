@@ -33,12 +33,13 @@ from math import radians, cos, sin, asin, sqrt
 
 
 # Change this to your local path where the group data is stored
-group_dir = "../data/group"
-stations_path = "../data/public/train_stations_GB.csv"
+group_dir = "C:/Users/josh/OneDrive - Bath Spa University/3rd Year/CreatingIOT/iot-activity-recognition/data/group"
+stations_path = "C:/Users/josh/OneDrive - Bath Spa University/3rd Year/CreatingIOT/iot-activity-recognition/data/public/train_stations_GB.csv"
+
 all_files = os.listdir(group_dir)
 
 # Constants 
-STATIONARY_SPEED = 0
+STATIONARY_SPEED = 1
 WALKING_SPEED = 4
 RUNNING_SPEED = 16
 IN_VEHICLE_SPEED = 52
@@ -52,9 +53,6 @@ stationsData.columns = ['id', 'name', 'norm', 'uic', 'latitude', 'longitude', 's
 
 # Create DataFrame for stations
 stations = pd.DataFrame(stationsData)
-
-
-
 
 
 # To determine if a location is near a station within a given radius

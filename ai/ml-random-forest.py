@@ -32,7 +32,7 @@ stations_path = "../data/public/train_stations_GB.csv"
 all_files = os.listdir(group_dir)
 
 # Constants 
-STATIONARY_SPEED = 0
+STATIONARY_SPEED = 1
 WALKING_SPEED = 4
 RUNNING_SPEED = 16
 IN_VEHICLE_SPEED = 48

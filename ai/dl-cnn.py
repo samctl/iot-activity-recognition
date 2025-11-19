@@ -27,7 +27,7 @@ import seaborn as sns
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
-
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 # Constants 
 group_dir = "C:/Users/josh/OneDrive - Bath Spa University/3rd Year/CreatingIOT/iot-activity-recognition/data/group"
@@ -316,6 +316,7 @@ def visualize_results(y_true, y_pred, label_classes):
     print(classification_report(y_true, y_pred, target_names=label_classes))
 
 
+
 # Entrypoint fucnction
 def main():
     
@@ -366,8 +367,29 @@ def main():
     visualize_results(y_true, y_pred, label_classes)
     
     report = classification_report(y_true, y_pred, target_names=label_classes, digits=4)
+
+
+
+    # Print detailed metrics
+    accuracy = accuracy_score(y_true, y_pred)
+    precision = precision_score(y_true, y_pred, average='weighted', zero_division=0)
+    recall = recall_score(y_true, y_pred, average='weighted', zero_division=0)
+    f1 = f1_score(y_true, y_pred, average='weighted', zero_division=0)
+
+    print(f"Accuracy : {accuracy:.4f}")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall   : {recall:.4f}")
+    print(f"F1 Score : {f1:.4f}")
+
+    # Full classification report
+    report = classification_report(y_true, y_pred, target_names=label_classes, digits=4)
+
+
     print(report)
 
+    
 
 if __name__ == "__main__":
     main()
+
+
