@@ -40,7 +40,7 @@ all_files = os.listdir(group_dir)
 # Constants 
 STATIONARY_SPEED = 0
 WALKING_SPEED = 4
-RUNNING_SPEED = 13
+RUNNING_SPEED = 16
 IN_VEHICLE_SPEED = 52
 
 # Define the field names to be used from the CSV files
