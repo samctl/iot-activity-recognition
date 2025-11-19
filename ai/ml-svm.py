@@ -128,7 +128,7 @@ def classify_activity(speed_kmh):
     else:
         return 'on_train'  # above 72 km/h is considered on train
 
-# Classifies whether on train based on previous station
+# Classifies whether or not they are on train based on previous station
 def clasifyOnTrain(onTrainIndex, previousStationId):
     numOfEntries = onTrainIndex
     onTrain = False
