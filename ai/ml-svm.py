@@ -43,20 +43,18 @@ WALKING_SPEED = 7
 RUNNING_SPEED = 18
 IN_VEHICLE_SPEED = 72
 
+# Define the field names to be used from the CSV files
 fieldNames = ['time', 'Latitude', 'Longitude', 'Altitude (m)', 'Speed (km/h)', 'Total Distance (km)' ] 
 
-
+# Load station data
 stationsData = pd.read_csv(stations_path)
 stationsData.columns = ['id', 'name', 'norm', 'uic', 'latitude', 'longitude', 'station_id', 'country', 'time_zone', 'is_city', 'is_main_station', 'is_airport', 'entur_id', 'entur_is_enabled']
 
+# Create DataFrame for stations
 stations = pd.DataFrame(stationsData)
-print("\n\nIM SHOWING THE DATA")
-print(stations.head())
 
 
-
-
-
+# To determine if a location is near a station within a given radius
 def is_nearest(lat, lon, radius_km):
     EARTHS_RADIUS = 6371
     found = (False, None)
@@ -77,13 +75,13 @@ def is_nearest(lat, lon, radius_km):
     # Check if any station is within radius
     if np.any(km <= radius_km):
         nearest_station_id = stations['id'].values[km <= radius_km][0]  # first matching station
-        found = (True, nearest_station_id) # staion found
+        found = (True, nearest_station_id) # station found
     return found
 
 
-
+# Load all CSV files from the specified directory
 def loadFiles(group_dir, fieldNames):
-    
+    # Lists to hold file names and dataframes
     csv_files = []
     dataFrames = []
 
@@ -112,40 +110,36 @@ def loadFiles(group_dir, fieldNames):
     # Convert speed to a numerical value
     pima['Speed (km/h)'] = pd.to_numeric(pima['Speed (km/h)'], errors='coerce')
    
-    #TODO - Check the time format in the csv files - currently mixed values. Need to standardised and then converted to numeric feature so the SVM model can use it
-    #pima['time'] = pd.to_numeric(pima['time'], errors='coerce')
-
-    return pima
+    return pima 
 
 
 # Classifies the activity based on speed
 def classify_activity(speed_kmh):
     if pd.isna(speed_kmh):
-        return 'unknown'
-    if speed_kmh < STATIONARY_SPEED:
+        return 'unknown' # incase of NaN speed values
+    if speed_kmh < STATIONARY_SPEED: # Currently set to 1 km/h
         return 'stationary'
-    elif speed_kmh < WALKING_SPEED:
+    elif speed_kmh < WALKING_SPEED: # Currently set to 7 km/h
         return 'walking'
-    elif speed_kmh < RUNNING_SPEED:
+    elif speed_kmh < RUNNING_SPEED: # Currently set to 18 km/h
         return 'running'
-    elif speed_kmh < IN_VEHICLE_SPEED:
+    elif speed_kmh < IN_VEHICLE_SPEED: # Currently set to 72 km/h
         return 'in_vehicle' 
     else:
-        return 'on_train'  
+        return 'on_train'  # above 72 km/h
 
-
+# Classifies whether on train based on previous station
 def clasifyOnTrain(onTrainIndex, previousStationId):
     numOfEntries = onTrainIndex
     onTrain = False
     stationId = 0
-    # print("Current Index = ", onTrainIndex)
+    # print("Current Index = ", onTrainIndex) 
     # Check back to determine whether coords were at a station
     while (onTrainIndex > 0 and onTrain == False):
         isAtTrainStn, ClosestStationId = is_nearest(pima.iloc[onTrainIndex]['Latitude'], pima.iloc[onTrainIndex]['Longitude'], 1.0) # sets 1 km radius - how close to station to be considered at station 
         if (isAtTrainStn == True):
             stationId = ClosestStationId
             onTrain = True
-        # print("Next Index")
         onTrainIndex -= 1
     
     # When location was at a station then work to most recent entry to set on train
@@ -158,13 +152,13 @@ def clasifyOnTrain(onTrainIndex, previousStationId):
     return onTrainIndex, stationId
 
 
-#Classifies the activities again - However backwards on the dataframe to refine those classifications that may be incorrect
+# Classifies the activities again - However backwards on the dataframe to refine those classifications that may be incorrect
+
 def refine_classification(pima):
     # Create a new column for refined labels
     pima['label_refined'] = pima['label']
     
-    # Refine classification by iterating backward on the dataframe
-    
+
     # Check whether on train
     onTrainIndex = len(pima) - 1
     # start with Destination station (the most recent station)
@@ -172,7 +166,9 @@ def refine_classification(pima):
     while (onTrainIndex > 0):
         onTrainIndex, stationId = clasifyOnTrain(onTrainIndex, stationId)
     
+    # Now refine in_vehicle and walking classifications
     index = len(pima) - 1
+    # Refine classification by iterating backward on the dataframe
     while index > 0:
         # Check for transition from in_vehicle to walking
         if ((pima.iloc[index-1]['label_refined'] == 'walking' or
@@ -184,31 +180,33 @@ def refine_classification(pima):
         index -= 1
     return pima
 
+# Prepare data for training and testing
 def prepare_data(pima, fieldNames):
 
-    # Calculate the average speed over a 5 sampled rolling window. - TODO - Currently cant use the time format but use pima.set_index('time')['Speed (km/h)'] once the time format is fixed. Currently its using sample window of 5 rows instead of time stamps
+    # Calculate the average speed over a 5 sampled rolling window. (amit, 2025)
+    # In future this could be modified to use time stamps
     pima['averageSpeed'] = (
         pima['Speed (km/h)']
-        .rolling(window=int(5), min_periods=1)
+        .rolling(window=5, min_periods=1)
         .mean()
     )
- 
-
+    
+    # Classify activities based on average speed
     pima['label'] = pima['averageSpeed'].apply(classify_activity)
-    #pima['label'] = pima['Speed (km/h)'].apply(classify_activity)
     pima = refine_classification(pima)
     
     # Set x and y for train test split using the newly refined labels
     x = pima[fieldNames]
 
-    # currently drop the time column from the features as it contains mixed values. TODO - the drop needs to be removed and used as a feature in the SVM classifier once the time format is standardised
-    x = pima[fieldNames].drop('time', axis=1)
-    x = x.apply(pd.to_numeric, errors='coerce').fillna(0)
+    # currently drop the time column from the features as it contains mixed values. In future the SVM classifier could be modified to handle time series data.
+    x = pima[fieldNames].drop('time', axis=1) 
+    x = x.apply(pd.to_numeric, errors='coerce').fillna(0) 
+    # Fills missing records with NaN then replaces NaN fields with 0 (Pandas DataFrame fillna Method) and (Python pandas.to_numeric method, 2018)
+
 
     # set the y for train test split using the refined labels
     y = pima['label_refined']
 
-    print(pima.head(50)) # Print the first 50 rows of the dataframe to check the labels
     return x, y 
 
 pima = loadFiles(group_dir, fieldNames) # Load Files
@@ -218,20 +216,20 @@ x, y = prepare_data(pima, fieldNames) # Prepare data
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.20, random_state=1)
 
 # Create SVM Pipeline Classifier Object
-clf = make_pipeline(StandardScaler(), SVC())
+clf = make_pipeline(StandardScaler(), SVC()) # <-- could use SVC (kernel='poly') for different results. Currently is set to the default: SVC(kernel='rbf') due to it performing better for this dataset
 clf = clf.fit(x_train,y_train)
 y_pred = clf.predict(x_test)
 
-
+# To visualize confusion matrix and classification report
 def visualize_metrics(y_test, y_pred):
-    # setting style
+    # Setting style
     plt.style.use('seaborn-v0_8')
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
     
-    # confusion matrix
+    # Confusion matrix
     cm = confusion_matrix(y_test, y_pred)
     classes = sorted(set(y_test) | set(y_pred))
-    
+   
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
                 xticklabels=classes, yticklabels=classes, ax=ax1)
     ax1.set_title('Confusion Matrix', fontsize=14, fontweight='bold')
@@ -240,7 +238,7 @@ def visualize_metrics(y_test, y_pred):
     ax1.tick_params(axis='x', rotation=45)
     ax1.tick_params(axis='y', rotation=0)
     
-    # classification report heatmap
+    # Classification report heatmap
     report = classification_report(y_test, y_pred, output_dict=True)
     report_df = pd.DataFrame(report).transpose().iloc[:-3, :-1]  # remove averages and support
     
@@ -252,13 +250,19 @@ def visualize_metrics(y_test, y_pred):
     plt.tight_layout()
     plt.show()
     
-    return report_df
+    return report_df 
 
-# metrics
+# Metrics
 print(f"\nOverall Accuracy: {metrics.accuracy_score(y_test, y_pred):.4f}")
 print(f"Precision: {metrics.precision_score(y_test, y_pred, average='weighted'):.4f}")
 print(f"Recall: {metrics.recall_score(y_test, y_pred, average='weighted'):.4f}")
 print(f"F1-Score: {metrics.f1_score(y_test, y_pred, average='weighted'):.4f}")
 
-# generate visualizations
+# Generate visualizations
 report_df = visualize_metrics(y_test, y_pred)
+
+# References
+# Amit, w. 'Understanding Pandas Rolling', Medium. Available at: https://medium.com/@whyamit101/understanding-pandas-rolling-f8f6d6796c07 (Accessed: Oct 18, 2025).
+# Ahmed, R. 'Finding Nearest pair of Latitude and Longitude match using Python', Analytics Vidhya. Available at: https://medium.com/analytics-vidhya/finding-nearest-pair-of-latitude-and-longitude-match-using-python-ce50d62af546 (Accessed: Oct 28, 2025).
+# Pandas DataFrame fillna Method Available at: https://www.w3schools.com/python/pandas/ref_df_fillna.asp (Accessed: Oct 23, 2025).
+# Python pandas.to_numeric method(2018) Available at: https://www.geeksforgeeks.org/python/python-pandas-to_numeric-method/ (Accessed: Oct 21, 2025).
