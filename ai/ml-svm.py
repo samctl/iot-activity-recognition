@@ -33,15 +33,15 @@ from math import radians, cos, sin, asin, sqrt
 
 
 # Change this to your local path where the group data is stored
-group_dir = "C:/Users/josh/OneDrive - Bath Spa University/3rd Year/CreatingIOT/iot-activity-recognition/data/group"
-stations_path = "C:/Users/josh/OneDrive - Bath Spa University/3rd Year/CreatingIOT/iot-activity-recognition/data/public/train_stations_GB.csv"
+group_dir = "../data/group"
+stations_path = "../data/public/train_stations_GB.csv"
 all_files = os.listdir(group_dir)
 
 # Constants 
-STATIONARY_SPEED = 1
-WALKING_SPEED = 7
-RUNNING_SPEED = 18
-IN_VEHICLE_SPEED = 72
+STATIONARY_SPEED = 0
+WALKING_SPEED = 4
+RUNNING_SPEED = 13
+IN_VEHICLE_SPEED = 52
 
 # Define the field names to be used from the CSV files
 fieldNames = ['time', 'Latitude', 'Longitude', 'Altitude (m)', 'Speed (km/h)', 'Total Distance (km)' ] 
@@ -52,6 +52,9 @@ stationsData.columns = ['id', 'name', 'norm', 'uic', 'latitude', 'longitude', 's
 
 # Create DataFrame for stations
 stations = pd.DataFrame(stationsData)
+
+
+
 
 
 # To determine if a location is near a station within a given radius
@@ -75,13 +78,13 @@ def is_nearest(lat, lon, radius_km):
     # Check if any station is within radius
     if np.any(km <= radius_km):
         nearest_station_id = stations['id'].values[km <= radius_km][0]  # first matching station
-        found = (True, nearest_station_id) # station found
+        found = (True, nearest_station_id) # staion found
     return found
 
 
 # Load all CSV files from the specified directory
 def loadFiles(group_dir, fieldNames):
-    # Lists to hold file names and dataframes
+    
     csv_files = []
     dataFrames = []
 
@@ -110,7 +113,7 @@ def loadFiles(group_dir, fieldNames):
     # Convert speed to a numerical value (Python pandas.to_numeric method, 2018)
     pima['Speed (km/h)'] = pd.to_numeric(pima['Speed (km/h)'], errors='coerce')
    
-    return pima 
+    return pima
 
 
 # Classifies the activity based on speed
@@ -119,21 +122,21 @@ def classify_activity(speed_kmh):
         return 'unknown' # incase of NaN speed values
     if speed_kmh < STATIONARY_SPEED: # Currently set to 1 km/h
         return 'stationary'
-    elif speed_kmh < WALKING_SPEED: # Currently set to 7 km/h
+    elif speed_kmh < WALKING_SPEED: # Currently set to 3 km/h
         return 'walking'
-    elif speed_kmh < RUNNING_SPEED: # Currently set to 18 km/h
+    elif speed_kmh < RUNNING_SPEED: # Currently set to 10 km/h
         return 'running'
-    elif speed_kmh < IN_VEHICLE_SPEED: # Currently set to 72 km/h
+    elif speed_kmh < IN_VEHICLE_SPEED: # Currently set to 52 km/h
         return 'in_vehicle' 
     else:
-        return 'on_train'  # above 72 km/h is considered on train
+        return 'on_train'  # above 52 km/h is considered on train
 
 # Classifies whether or not they are on train based on previous station
 def clasifyOnTrain(onTrainIndex, previousStationId):
     numOfEntries = onTrainIndex
     onTrain = False
     stationId = 0
-    # print("Current Index = ", onTrainIndex) 
+    # print("Current Index = ", onTrainIndex)
     # Check back to determine whether coords were at a station
     while (onTrainIndex > 0 and onTrain == False):
         isAtTrainStn, ClosestStationId = is_nearest(pima.iloc[onTrainIndex]['Latitude'], pima.iloc[onTrainIndex]['Longitude'], 1.0) # sets 1 km radius - how close to station to be considered at station 
@@ -152,13 +155,11 @@ def clasifyOnTrain(onTrainIndex, previousStationId):
     return onTrainIndex, stationId
 
 
-# Classifies the activities again - However backwards on the dataframe to refine those classifications that may be incorrect
-
+#Classifies the activities again - However backwards on the dataframe to refine those classifications that may be incorrect
 def refine_classification(pima):
     # Create a new column for refined labels
     pima['label_refined'] = pima['label']
     
-
     # Check if they were on train or not - iterate backwards
     onTrainIndex = len(pima) - 1
     stationId = 0 # start with Destination station (the most recent station)
@@ -168,6 +169,7 @@ def refine_classification(pima):
     # Refine in_vehicle and walking classifications
     # Refine classification by iterating backward on the dataframe
     index = len(pima) - 1
+   
     while index > 0:
         # Check for transition from in_vehicle to walking
         if ((pima.iloc[index-1]['label_refined'] == 'walking' or
@@ -189,7 +191,7 @@ def prepare_data(pima, fieldNames):
         .rolling(window=5, min_periods=1)
         .mean()
     )
-    
+ 
     # Classify activities based on average speed
     pima['label'] = pima['averageSpeed'].apply(classify_activity)
     pima = refine_classification(pima)
@@ -197,11 +199,10 @@ def prepare_data(pima, fieldNames):
     # Set x and y for train test split using the newly refined labels
     x = pima[fieldNames]
 
-    # Currently drop the time column from the features as it contains mixed values. In future the SVM classifier could be modified to handle time series data.
+    # Currently drop the time column from the features as it contains mixed values. In future the RF classifier could be modified to handle time series data.
     x = pima[fieldNames].drop('time', axis=1)
     # Fills missing records with NaN then replaces NaN fields with 0 (Pandas DataFrame fillna Method) and (Python pandas.to_numeric method, 2018)
-    x = x.apply(pd.to_numeric, errors='coerce').fillna(0) 
-  
+    x = x.apply(pd.to_numeric, errors='coerce').fillna(0)
 
     # set the y for train test split using the refined labels
     y = pima['label_refined']
