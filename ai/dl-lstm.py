@@ -364,10 +364,6 @@ def main():
     print(f"Recall   : {recall:.4f}")
     print(f"F1 Score : {f1:.4f}")
 
-    # Full classification report
-    report = classification_report(y_true, y_pred, target_names=label_classes, digits=4)
-
-
 
     print(report)
 
