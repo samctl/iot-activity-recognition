@@ -31,7 +31,10 @@ from torch.utils.data import Dataset, DataLoader
 
 
 # Constants 
-group_dir = "../data/master"
+group_dir = "C:/Users/josh/OneDrive - Bath Spa University/3rd Year/CreatingIOT/iot-activity-recognition/data/group"
+stations_path = "C:/Users/josh/OneDrive - Bath Spa University/3rd Year/CreatingIOT/iot-activity-recognition/data/public/train_stations_GB.csv"
+
+
 all_files = os.listdir(group_dir)
 
 # constant model tweaking variables
@@ -40,7 +43,18 @@ WALKING_SPEED = 5
 RUNNING_SPEED = 20
 IN_VEHICLE_SPEED = 52
 
+# Define the field names to be used from the CSV files
 fieldNames = ['time', 'Latitude', 'Longitude', 'Altitude (m)', 'Speed (km/h)', 'Total Distance (km)' ] 
+
+# Load station data
+stationsData = pd.read_csv(stations_path)
+stationsData.columns = ['id', 'name', 'norm', 'uic', 'latitude', 'longitude', 'station_id', 'country', 'time_zone', 'is_city', 'is_main_station', 'is_airport', 'entur_id', 'entur_is_enabled']
+
+# Create DataFrame for stations
+stations = pd.DataFrame(stationsData)
+
+
+
 
 def loadFiles(group_dir, fieldNames):
     
@@ -138,6 +152,47 @@ def prepare_data(df):
     y = df['label_refined']
     return x, y 
 
+def is_nearest(lat, lon, radius_km=1.0):
+    EARTHS_RADIUS = 6371
+    lat1 = np.radians(lat)
+    lon1 = np.radians(lon)
+    lat2 = np.radians(stations['latitude'].values)
+    lon2 = np.radians(stations['longitude'].values)
+
+    deltalat = lat2 - lat1 
+    deltalon = lon2 - lon1
+    squared_sine = np.sin(deltalat/2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(deltalon/2)**2
+    angular_distance = 2 * np.arcsin(np.sqrt(squared_sine))
+    km = EARTHS_RADIUS * angular_distance
+
+    if np.any(km <= radius_km):
+        nearest_station_id = stations['id'].values[km <= radius_km][0]
+        return True, nearest_station_id
+    return False, None
+
+
+# Classifies whether or not they are on train based on previous station
+def clasifyOnTrain(pima, onTrainIndex, previousStationId):
+    numOfEntries = onTrainIndex
+    onTrain = False
+    stationId = 0
+    # print("Current Index = ", onTrainIndex)
+    # Check back to determine whether coords were at a station
+    while (onTrainIndex > 0 and onTrain == False):
+        isAtTrainStn, ClosestStationId = is_nearest(pima.iloc[onTrainIndex]['Latitude'], pima.iloc[onTrainIndex]['Longitude'], 1.0) # sets 1 km radius - how close to station to be considered at station 
+        if (isAtTrainStn == True):
+            stationId = ClosestStationId
+            onTrain = True
+        onTrainIndex -= 1
+    
+    # When location was at a station then work to most recent entry to set on train
+    # but only when not the destination station i.e. previousStationId = 0 or station is the same
+    if (onTrain == True and previousStationId != 0 and stationId != previousStationId):
+        index = onTrainIndex
+        while(index < numOfEntries):
+            pima.iloc[index, pima.columns.get_loc('label_refined')] = 'on_train'
+            index += 1
+    return onTrainIndex, stationId
 
 # This class is for RNN model 'windows' (pieces of data)
 # The Alogrithm will analyse windows for patterns for predictions
