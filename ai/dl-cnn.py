@@ -55,7 +55,7 @@ stations = pd.DataFrame(stationsData)
 
 
 
-
+# Load all CSV files from the specified directory
 def loadFiles(group_dir, fieldNames):
     
     csv_files = []

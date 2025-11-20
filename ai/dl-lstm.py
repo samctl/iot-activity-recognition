@@ -113,21 +113,26 @@ def refine_classification(pima):
     # Create a new column for refined labels
     pima['label_refined'] = pima['label']
     
+    # Check if they were on train or not - iterate backwards
+    onTrainIndex = len(pima) - 1
+    stationId = 0 # start with Destination station (the most recent station)
+    while (onTrainIndex > 0):
+        onTrainIndex, stationId = clasifyOnTrain(onTrainIndex, stationId)
+    
+    # Refine in_vehicle and walking classifications
     # Refine classification by iterating backward on the dataframe
-    index = len(pima) - 2
-    while index >= 0:
+    index = len(pima) - 1
+   
+    while index > 0:
         # Check for transition from in_vehicle to walking
-        if pima.iloc[index]['label_refined'] == 'walking' and pima.iloc[index+1]['label_refined'] == 'in_vehicle':
-        # consider if the current activity walking was actually in_vehicle
-            if pima.iloc[index]['Speed (km/h)'] < 5:
-                pima.iloc[index, pima.columns.get_loc('label_refined')] = 'in_vehicle'
-        elif pima.iloc[index]['label_refined'] == 'running' and pima.iloc[index+1]['label_refined'] == 'in_vehicle':
-            # consider if the current activity running was actually in_vehicle
-            if pima.iloc[index]['Speed (km/h)'] > 10: 
-                 pima.iloc[index, pima.columns.get_loc('label_refined')] = 'in_vehicle'
+        if ((pima.iloc[index-1]['label_refined'] == 'walking' or
+             pima.iloc[index-1]['label_refined'] == 'running') and
+             pima.iloc[index]['label_refined'] == 'in_vehicle'):
+            # consider if the current activity walking or running was actually in_vehicle
+            if pima.iloc[index-1]['Speed (km/h)'] > STATIONARY_SPEED: 
+                pima.iloc[index-1, pima.columns.get_loc('label_refined')] = 'in_vehicle'
         index -= 1
     return pima
-
 
 ##========================================================
 #   NOTE: EVERYTHING BELOW THIS LINE HAS/WILL BE CHANGED 
