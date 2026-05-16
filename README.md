@@ -1,91 +1,45 @@
-# IoT Activity Recognition
+# IoT HAR Project
 
-**DUE DATE: 21/11/2025**
+A conceptual Human Activity Recognition system to detect public disturbances through the use of pattern recognition with Machine Learning and Deep Learning models. 
 
-## Brief
-In this exercise, you will be collecting some data using your IoT devices. For convenience, you
-may use the mobile phones, but smart watches, etc, can also be used. The data is expected to
-be largely anonymous and may include things like latitude, longitude, pace, and time, among
-others. You may use an App from the App or IOS store, including regular Apps used for
-workout or related activities. We will discuss this in the class to ensure harmony. We are using
-these Apps for simplicity and because they are approved by the App/IOS stores, which means
-their security risks may be less - but there are other ways. The data you generate shall be used
-to test machine learning (ML) or/and deep learning models which you shall build and train
-using some (public) datasets. Some more instructions are provided under the “Highlight of
-Tasks”, but as this is a level six module, your professional creativity is highly encouraged
-within the assessment’s requirements.
+The project uses the Tracks Logger Application, available on Android and iOS, to collect data for testing. 
 
-Although the data is anonymous, it is still from your devices, so, be sure that you consent and
-are comfortable with the exercise. Otherwise, let the teaching team know and you will be
-advised further. The data will only be used by yourselves and for the purpose of completing
-the exercise in this module. You will analyse and derive meaning from IoT-based data, to
-demonstrate how rival nations or surveillance capitalists, for example, may process such data.
-It will also help you to understand how to better protect people from IoT exploits. In summary,
-the exercise involves analysing data using ML/AI tools and techniques for human activities
-recognition (HAR). Such could be used for marketing (e.g. based on ‘habit’), or to protect
-critical infrastructures, etc. But it can also be used for malicious monitoring. Some of the tasks
-are group activities, and your participation shall be tracked and considered during
-marking/grading.
+- iOS: https://apps.apple.com/us/app/tracks-logger/id849620385
+- Android: https://play.google.com/store/apps/details?id=com.peterhohsy.gpsloggerlite&hl=en_GB
 
-## Tasks
-1. Research and decide on a dataset and the type of activities you would like to
-focus on. The lecturer will need to be approve of this. It is the responsibility of
-your group to share your dataset with the lecturer(s).
-2. Decide on an App of choice. (Install the App on your phones individually).
-3. Switch on the APP, severally, while performing relevant activities. This will
-depend on that dataset earlier chosen. The goal is to gather a reasonable amount of
-relevant data yourselves to test your model. You will also need to extract the
-(anonymous) data, preferably in CSV, and send to your group’s folder. Consider
-retaining your own copy of the data until you submit/present the work.
-4. Clean up the data (both the public dataset, and the one from your group)
-applying due machine learning techniques.
-5. Build and train a simple ML model that would detect/recognise the activities,
-ideally using the public dataset.
-6. See if the model works, using a portion of the public dataset first, and then the
-data from your group, etc, as may be appropriate. Nothing stops you from
-exploring more.
-7. Explore Deep Learning algorithms (e.g. CNN, RNN) to see if any of such
-algorithms are applicable. If so, compare results.
-8. Make a 15mins presentation about the process, your findings, ethical
-implications of IoT to individuals and states, and IoT benefits and
-threat/vulnerabilities. Feel free to add to these points as you deem appropriate.
+The project aimed to identify the most suitable ML/DL algorithm and to design a conceptual system that could be implemented on the Microsoft Azure platform.
 
-## Deliverables
-- Presentation slides
-- Code (ML/AI model)
-- Dataset
-- Peer participation assessment
-- Oral presentation
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white) ![Microsoft Azure](https://img.shields.io/badge/Azure-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white) ![Grafana](https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white)
 
-## Repository Commits
+## Technologies and Expected Capabilities
+As part of testing, Tracks Logger or any GPS-storing software can be utilised to obtain data for training and testing AI models. However, to be production-capable, a software application that collects real-time geolocation data would be required, with user consent. 
 
-This GitHub repository follows a personalised version of conventional commit types.
+A heatmap is intended to identify areas where a disturbance is highly likely, as estimated by an instance of Grafarna.
+![grafarna](img/grafarna-example.png)
 
-A visual demonstration of the full list of conventional commit types can be found here [here](https://github.com/pvdlg/conventional-changelog-metahub).
+### Anomalies, Architecture and Threat Modelling
 
-| Commit Type | Title                    | Meaning                                                                                     |
-| ----------- | ------------------------ | ------------------------------------------------------------------------------------------- |
-| `feat`      | Features                 | A new feature                                                                               |
-| `fix`       | Bug Fixes                | A bug Fix                                                                                   |
-| `docs`      | Documentation            | Changes which affect documentation only                                                     |
-| `refactor`  | Code Refactoring         | Changes affecting code that do not fit into the bug fix or feature category                 |
-| `perf`      | Performance Improvements | A code change that improves performance                                                     |
-| `chore`     | Chores                   | Minor adjustments, such as adjusting comments or non-functional code formatting             |
+Systems need to be enhanced to prevent data poisoning or data anomalies. A threat model highlights a prototype solution of a production system, including the Azure components, potential threats and trust boundaries. Where trust changes, the most critical threats, such as data poisoning or unauthorised access, could occur. 
 
-## Folder Structure
-*Note: this does not reflect the full contents of this repository*
+Components of this prototype include:
+- P2S VPN Gateway
+- Azure Managed Grafarna
+- Azure Data Explorer
+- Azure ML Workspace
+- Azure Event Hub
+- Azure Function (not restricted by VPN access)
 
-    .
-    ├── iot-activity-recognition 
-    │  ├── ai
-    │      ├── dl-algorithm.py
-    │      └── ml-svm.py
-    │  ├── data
-    │      ├── public
-    │      └── group
-    │  ├── docs
-    │      └── threat-model
-    │
-    │  └── README.md
-    │
-    └── ...
+<p align="center">
+  <img src="img/threat-model.png" alt="Threat Model" width="550">
+</p>
+
+A reverse iteration method has also been utilised to prevent certain anomalies, such as ever-changing train speeds. This has been demonstrated below with an example train trip from Chippenham Station to Bath Station.
+
+Other cases could include a car coming to a complete stop temporarily or a train entering a tunnel, resulting in a loss of GPS signal.
+
+![reverse-it](img/reverse-iteration.png)
+
+
+
+## Additional Info
+The results of the AI, and further details regarding this topic, can be found within `docs/Project Presentation.pptx`, including the thought process behined the project and results of the Machine and Deep Learning models.
